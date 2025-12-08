@@ -9,9 +9,14 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@extractus/article-extractor": "^8.0.20",
+    "formidable": "^3.5.4",
     "next": "16.0.3",
+    "openai": "^6.9.1",
     "react": "19.2.0",
-    "react-dom": "19.2.0"
+    "react-dom": "19.2.0",
+    "youtube-captions-scraper": "^2.0.3",
+    "youtube-comment-scraper": "^0.2.2"
   },
   "devDependencies": {
     "eslint": "^9",
