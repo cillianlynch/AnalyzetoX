@@ -34,27 +34,21 @@ export default function FileUploader({ onUpload }) {
     <div style={{ marginTop: 8 }}>
       <label
         style={{
-          display: "block",
-          marginBottom: 6,
-          fontSize: 14,
-        }}
-      >
-        Screenshot image
-      </label>
-
-      <label
-        style={{
-          display: "inline-flex",
+          display: "flex",
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          width: "220px",
-          height: "140px",
-          borderRadius: 12,
-          border: "1px dashed #aaa",
-          background: "#fafafa",
+          width: "100%",
+          height: "400px",
+          borderRadius: 8,
+          border: "2px solid #333",
+          background: "#fff",
           cursor: "pointer",
-          fontSize: 13,
+          fontSize: 16,
+          transition: "background 0.2s",
         }}
+        onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f5f5")}
+        onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
       >
         {preview ? (
           <img
@@ -63,12 +57,25 @@ export default function FileUploader({ onUpload }) {
             style={{
               maxWidth: "100%",
               maxHeight: "100%",
-              borderRadius: 10,
+              borderRadius: 6,
               objectFit: "cover",
             }}
           />
         ) : (
-          <span>Click to upload screenshot</span>
+          <>
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{ marginBottom: "12px" }}
+            >
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+            <span style={{ fontSize: 16, fontWeight: 500 }}>Screenshot</span>
+          </>
         )}
         <input
           type="file"
@@ -79,7 +86,7 @@ export default function FileUploader({ onUpload }) {
       </label>
 
       {status && (
-        <p style={{ marginTop: 6, fontSize: 12, color: "#555" }}>{status}</p>
+        <p style={{ marginTop: 6, fontSize: 12, color: "#555", textAlign: "center", width: "100%" }}>{status}</p>
       )}
     </div>
   );

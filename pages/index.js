@@ -1,9 +1,9 @@
 import { useState } from "react";
+import { useRouter } from "next/router";
 import FileUploader from "../components/FileUploader";
 import URLInputs from "../components/URLInputs";
 import ModeSelector from "../components/ModeSelector";
 import RawTextInput from "../components/RawTextInput";
-import Results from "../components/Results";
 
 function stripHtml(html) {
   if (!html) return "";
@@ -11,14 +11,15 @@ function stripHtml(html) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const [screenshots, setScreenshots] = useState([]);
   const [transcript, setTranscript] = useState(null);
   const [comments, setComments] = useState(null);
   const [article, setArticle] = useState(null);
   const [rawText, setRawText] = useState("");
   const [mode, setMode] = useState("summary");
-  const [output, setOutput] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [commentsStatus, setCommentsStatus] = useState("");
 
     // When screenshot is uploaded
   function handleScreenshotUpload(data) {
@@ -60,8 +61,14 @@ export default function Home() {
     });
 
     const data = await res.json();
-    setOutput(data.output);
     setLoading(false);
+    
+    // Store output in sessionStorage and navigate to results page
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("aiOutput", data.output);
+      sessionStorage.setItem("outputMode", mode);
+      router.push("/results");
+    }
   }
     // Use videoId from a screenshot to fetch YouTube comments
   async function handleFetchCommentsFromScreenshot(videoId) {
@@ -80,6 +87,7 @@ export default function Home() {
 
       if (Array.isArray(data.comments)) {
         setComments(data.comments);
+        setCommentsStatus(`Comments loaded ✔ (${data.comments.length})`);
       }
     } catch (err) {
       console.error("handleFetchCommentsFromScreenshot error:", err);
@@ -102,17 +110,11 @@ export default function Home() {
   const rawTextChars = rawText ? rawText.length : 0;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "900px", margin: "0 auto" }}>
-      <h1>Multi-Source Analyzer</h1>
-      <p>
-        Upload screenshots, paste YouTube links, article URLs, or text. Then choose a mode and
-        generate.
-      </p>
+    <div style={{ padding: "20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
+      <h1 style={{ position: "fixed", top: "20px", left: "20px", margin: 0 }}>AnalyzetoX</h1>
 
-      <hr />
-      <h2>1. Upload Screenshots</h2>
       <FileUploader onUpload={handleScreenshotUpload} />
-      <p>{screenshots.length} screenshot(s) added.</p>
+      {screenshots.length > 0 && <p>1 screenshot added.</p>}
 
       {screenshots.length > 0 && (
         <div style={{ marginTop: "10px" }}>
@@ -154,19 +156,17 @@ export default function Home() {
         </div>
       )}
 
-      <hr />
+      <p style={{ textAlign: "center", marginTop: 20, marginBottom: 0, fontSize: 16 }}>or</p>
 
-
-
-          <h2>2. YouTube & Article Inputs</h2>
    <URLInputs
      onTranscript={handleTranscript} 
      onComments={handleComments}
      onArticle={handleArticle}
+     commentsStatus={commentsStatus}
+     onCommentsStatusChange={setCommentsStatus}
    />
 
    {transcript && <p>Transcript loaded ✔</p>}
-   {comments && <p>Comments loaded ✔</p>}
    {article && <p>Article extracted ✔</p>}
 
    {/* Transcript preview */}
@@ -216,30 +216,22 @@ export default function Home() {
 
 
 
-      <hr />
-
-      <h2>3. Paste Raw Text (optional)</h2>
       <RawTextInput text={rawText} setText={setRawText} />
 
-      <hr />
-
-      <h2>4. Choose Output Mode</h2>
       <ModeSelector mode={mode} setMode={setMode} />
 
-            <h2>4. Output Mode</h2>
-      <ModeSelector mode={mode} setMode={setMode} />
-
-      <button
-        onClick={handleGenerate}
-        disabled={loading}
-        style={{
-          marginTop: "20px",
-          padding: "10px 20px",
-          fontSize: "16px",
-        }}
-      >
-        {loading ? "Generating..." : "Generate Output"}
-      </button>
+      <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          style={{
+            padding: "10px 20px",
+            fontSize: "16px",
+          }}
+        >
+          {loading ? "Generating..." : "Generate Output"}
+        </button>
+      </div>
 
       {/* Sources summary panel */}
       <div
@@ -270,9 +262,6 @@ export default function Home() {
           </li>
         </ul>
       </div>
-
-      <Results output={output} mode={mode} />
-
 
     </div>
   );

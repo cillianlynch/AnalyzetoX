@@ -1,10 +1,8 @@
 import { useState } from "react";
 
-export default function URLInputs({ onTranscript, onComments, onArticle }) {
-  const [youtubeUrl, setYoutubeUrl] = useState("");
-  const [articleUrl, setArticleUrl] = useState("");
-  const [youtubeStatus, setYoutubeStatus] = useState("");
-  const [articleStatus, setArticleStatus] = useState("");
+export default function URLInputs({ onTranscript, onComments, onArticle, commentsStatus, onCommentsStatusChange }) {
+  const [url, setUrl] = useState("");
+  const [status, setStatus] = useState("");
 
   // Pull a videoId out of any common YouTube URL form
   function extractVideoId(url) {
@@ -35,162 +33,106 @@ export default function URLInputs({ onTranscript, onComments, onArticle }) {
     }
   }
 
-  // When user pastes a YouTube URL and hits Enter
-  async function handleYouTubeSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setYoutubeStatus("");
+    setStatus("");
 
-    const videoId = extractVideoId(youtubeUrl);
-    if (!videoId) {
-      setYoutubeStatus("Could not read a video ID from that URL.");
+    if (!url.trim()) {
+      setStatus("Please paste a URL.");
       return;
     }
 
-    try {
-      const res = await fetch(
-        `/api/getComments?videoId=${encodeURIComponent(videoId)}`
-      );
-      const data = await res.json();
+    const videoId = extractVideoId(url.trim());
+    
+    // Try YouTube first if it's a YouTube URL
+    if (videoId) {
+      try {
+        const res = await fetch(
+          `/api/getComments?videoId=${encodeURIComponent(videoId)}`
+        );
+        const data = await res.json();
 
-      if (data.error) {
-        setYoutubeStatus("Comments error: " + data.error);
-        return;
-      }
+        if (data.error) {
+          setStatus("Error: " + data.error);
+          return;
+        }
 
-      if (Array.isArray(data.comments)) {
-        if (onComments) onComments(data.comments);
-        setYoutubeStatus(`Comments loaded ✔ (${data.comments.length})`);
-      } else {
-        setYoutubeStatus("No comments found.");
+        if (Array.isArray(data.comments)) {
+          if (onComments) onComments(data.comments);
+          const statusMsg = `Comments loaded ✔ (${data.comments.length})`;
+          setStatus(statusMsg);
+          if (onCommentsStatusChange) {
+            onCommentsStatusChange(statusMsg);
+          }
+        } else {
+          setStatus("No comments found.");
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Error: failed to fetch.");
       }
-    } catch (err) {
-      console.error(err);
-      setYoutubeStatus("Comments error: failed to fetch.");
+    } else {
+      // Try as article URL
+      try {
+        const res = await fetch(
+          "/api/getArticle?url=" + encodeURIComponent(url.trim())
+        );
+        const data = await res.json();
+
+        if (data.error) {
+          setStatus("Error: " + data.error);
+          return;
+        }
+
+        if (onArticle) onArticle(data);
+        const statusMsg = "Article extracted ✔";
+        setStatus(statusMsg);
+        if (onCommentsStatusChange) {
+          onCommentsStatusChange(statusMsg);
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("Error: failed to fetch.");
+      }
     }
   }
 
-  // When user pastes an article URL and hits Enter
-  async function handleArticleSubmit(e) {
-    e.preventDefault();
-    setArticleStatus("");
-
-    if (!articleUrl.trim()) {
-      setArticleStatus("Please paste an article URL.");
-      return;
-    }
-
-    try {
-      const res = await fetch(
-        "/api/getArticle?url=" + encodeURIComponent(articleUrl.trim())
-      );
-      const data = await res.json();
-
-      if (data.error) {
-        setArticleStatus("Article error: " + data.error);
-        return;
-      }
-
-      if (onArticle) onArticle(data);
-      setArticleStatus("Article extracted ✔");
-    } catch (err) {
-      console.error(err);
-      setArticleStatus("Article error: failed to fetch.");
-    }
-  }
+  const displayStatus = commentsStatus || status;
 
   return (
     <div style={{ marginTop: 20 }}>
-      <h2>2. YouTube & Article Inputs</h2>
-
-      {/* YouTube URL */}
-      <form onSubmit={handleYouTubeSubmit} style={{ marginBottom: 16 }}>
-        <label
-          style={{
-            display: "block",
-            fontSize: 14,
-            marginBottom: 4,
-          }}
-        >
-          YouTube video URL
-        </label>
-        <input
-          type="url"
-          value={youtubeUrl}
-          onChange={(e) => setYoutubeUrl(e.target.value)}
-          placeholder="Paste YouTube URL here"
-          style={{
-            width: "100%",
-            padding: 8,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            fontSize: 14,
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            marginTop: 6,
-            padding: "6px 12px",
-            fontSize: 14,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
-            cursor: "pointer",
-          }}
-        >
-          Enter
-        </button>
-        {youtubeStatus && (
-          <p style={{ marginTop: 4, fontSize: 12, color: "#555" }}>
-            {youtubeStatus}
-          </p>
-        )}
-      </form>
-
-      {/* Article URL */}
-      <form onSubmit={handleArticleSubmit}>
-        <label
-          style={{
-            display: "block",
-            fontSize: 14,
-            marginBottom: 4,
-          }}
-        >
-          Article URL
-        </label>
-        <input
-          type="url"
-          value={articleUrl}
-          onChange={(e) => setArticleUrl(e.target.value)}
-          placeholder="Paste article / blog URL here"
-          style={{
-            width: "100%",
-            padding: 8,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            fontSize: 14,
-          }}
-        />
-        <button
-          type="submit"
-          style={{
-            marginTop: 6,
-            padding: "6px 12px",
-            fontSize: 14,
-            borderRadius: 4,
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
-            cursor: "pointer",
-          }}
-        >
-          Enter
-        </button>
-        {articleStatus && (
-          <p style={{ marginTop: 4, fontSize: 12, color: "#555" }}>
-            {articleStatus}
-          </p>
-        )}
-      </form>
+      {displayStatus && (
+        <p style={{ marginBottom: 8, fontSize: 14, color: "#555" }}>
+          {displayStatus}
+        </p>
+      )}
+      <input
+        type="url"
+        value={url}
+        onChange={(e) => {
+          setUrl(e.target.value);
+          // Clear status when user starts typing
+          if (e.target.value) {
+            setStatus("");
+            if (onCommentsStatusChange) {
+              onCommentsStatusChange("");
+            }
+          }
+        }}
+        placeholder="URL of article or video"
+        style={{
+          width: "100%",
+          padding: 12,
+          borderRadius: 4,
+          border: "2px solid #333",
+          fontSize: 16,
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleSubmit(e);
+          }
+        }}
+      />
     </div>
   );
 }
