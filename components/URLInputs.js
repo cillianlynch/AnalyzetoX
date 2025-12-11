@@ -11,6 +11,8 @@ export default function URLInputs({
   const [status, setStatus] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const timeoutRef = useRef(null);
+  const lastProcessedUrlRef = useRef("");
+  const isLoadingRef = useRef(false);
 
   // Pull a videoId out of any common YouTube URL form
   function extractVideoId(url) {
@@ -41,20 +43,31 @@ export default function URLInputs({
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setStatus("");
-
-    if (!url.trim()) {
+  async function handleSubmit(e, urlToProcess = null) {
+    if (e && e.preventDefault) {
+      e.preventDefault();
+    }
+    
+    const urlToUse = urlToProcess || url;
+    const trimmed = urlToUse.trim();
+    if (!trimmed) {
       setStatus("Please paste a URL.");
       return;
     }
 
-    const trimmed = url.trim();
+    // Prevent duplicate processing
+    if (trimmed === lastProcessedUrlRef.current && isLoading) {
+      return;
+    }
+
+    lastProcessedUrlRef.current = trimmed;
+    setStatus("");
+
     const videoId = extractVideoId(trimmed);
 
     // Try YouTube first if it's a YouTube URL
     if (videoId) {
+      isLoadingRef.current = true;
       setIsLoading(true);
       const workingMsg = "Analyzing video and loading comments...";
       setStatus(workingMsg);
@@ -70,6 +83,7 @@ export default function URLInputs({
 
         if (data.error) {
           setStatus("Error: " + data.error);
+          isLoadingRef.current = false;
           setIsLoading(false);
           return;
         }
@@ -84,14 +98,17 @@ export default function URLInputs({
         } else {
           setStatus("No comments found.");
         }
+        isLoadingRef.current = false;
         setIsLoading(false);
       } catch (err) {
         console.error(err);
         setStatus("Error: failed to fetch.");
+        isLoadingRef.current = false;
         setIsLoading(false);
       }
     } else {
       // Try as article URL
+      isLoadingRef.current = true;
       setIsLoading(true);
       const workingMsg = "Extracting article...";
       setStatus(workingMsg);
@@ -105,6 +122,7 @@ export default function URLInputs({
 
         if (data.error) {
           setStatus("Error: " + data.error);
+          isLoadingRef.current = false;
           setIsLoading(false);
           return;
         }
@@ -115,10 +133,12 @@ export default function URLInputs({
         if (onCommentsStatusChange) {
           onCommentsStatusChange(statusMsg);
         }
+        isLoadingRef.current = false;
         setIsLoading(false);
       } catch (err) {
         console.error(err);
         setStatus("Error: failed to fetch.");
+        isLoadingRef.current = false;
         setIsLoading(false);
       }
     }
@@ -131,7 +151,10 @@ export default function URLInputs({
     }
 
     const trimmed = url.trim();
-    if (!trimmed || isLoading) return;
+    if (!trimmed) return;
+
+    // Don't auto-trigger if we just processed this URL
+    if (trimmed === lastProcessedUrlRef.current) return;
 
     const videoId = extractVideoId(trimmed);
     
@@ -139,17 +162,20 @@ export default function URLInputs({
     if (videoId) {
       // Very short delay for YouTube URLs to catch paste events
       timeoutRef.current = setTimeout(() => {
-        if (!isLoading) {
-          handleSubmit({ preventDefault: () => {} });
+        // Check current state at execution time
+        const currentUrl = url.trim();
+        if (currentUrl === trimmed && currentUrl !== lastProcessedUrlRef.current && !isLoadingRef.current) {
+          handleSubmit(null);
         }
-      }, 200);
+      }, 500);
     } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
       // For article URLs, slightly longer delay
       timeoutRef.current = setTimeout(() => {
-        if (!isLoading && url.trim() === trimmed) {
-          handleSubmit({ preventDefault: () => {} });
+        const currentUrl = url.trim();
+        if (currentUrl === trimmed && currentUrl !== lastProcessedUrlRef.current && !isLoadingRef.current) {
+          handleSubmit(null);
         }
-      }, 500);
+      }, 700);
     }
 
     return () => {
@@ -171,12 +197,30 @@ export default function URLInputs({
               type="url"
               value={url}
               onChange={(e) => {
-                setUrl(e.target.value);
-                // Clear status when user starts typing
-                if (e.target.value) {
+                const newUrl = e.target.value;
+                setUrl(newUrl);
+                // Clear status when user starts typing a new URL
+                if (newUrl.trim() !== lastProcessedUrlRef.current) {
                   setStatus("");
                   if (onCommentsStatusChange) {
                     onCommentsStatusChange("");
+                  }
+                }
+              }}
+              onPaste={async (e) => {
+                // Get pasted text from clipboard
+                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+                const trimmed = pastedText.trim();
+                
+                if (trimmed) {
+                  const videoId = extractVideoId(trimmed);
+                  
+                  // If it's a YouTube URL, trigger analysis immediately
+                  if (videoId && trimmed !== lastProcessedUrlRef.current) {
+                    // Wait a moment for onChange to update state, then trigger with the pasted URL
+                    setTimeout(() => {
+                      handleSubmit(null, trimmed);
+                    }, 100);
                   }
                 }
               }}
