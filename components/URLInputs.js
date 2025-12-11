@@ -124,7 +124,7 @@ export default function URLInputs({
     }
   }
 
-  // Auto-analyze when a valid URL is pasted (with debounce)
+  // Auto-analyze when a valid URL is pasted (with short debounce)
   useEffect(() => {
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -134,15 +134,22 @@ export default function URLInputs({
     if (!trimmed || isLoading) return;
 
     const videoId = extractVideoId(trimmed);
-    const isValidUrl = videoId || (trimmed.startsWith("http://") || trimmed.startsWith("https://"));
-
-    if (isValidUrl) {
-      // Wait 1.5 seconds after user stops typing
+    
+    // For YouTube URLs, trigger immediately (shorter delay)
+    if (videoId) {
+      // Very short delay for YouTube URLs to catch paste events
       timeoutRef.current = setTimeout(() => {
         if (!isLoading) {
           handleSubmit({ preventDefault: () => {} });
         }
-      }, 1500);
+      }, 200);
+    } else if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+      // For article URLs, slightly longer delay
+      timeoutRef.current = setTimeout(() => {
+        if (!isLoading && url.trim() === trimmed) {
+          handleSubmit({ preventDefault: () => {} });
+        }
+      }, 500);
     }
 
     return () => {
@@ -170,17 +177,6 @@ export default function URLInputs({
                   setStatus("");
                   if (onCommentsStatusChange) {
                     onCommentsStatusChange("");
-                  }
-                }
-              }}
-              onBlur={(e) => {
-                // Auto-analyze on blur if URL is valid
-                const trimmed = e.target.value.trim();
-                if (trimmed && !isLoading) {
-                  const videoId = extractVideoId(trimmed);
-                  const isValidUrl = videoId || (trimmed.startsWith("http://") || trimmed.startsWith("https://"));
-                  if (isValidUrl) {
-                    handleSubmit({ preventDefault: () => {} });
                   }
                 }
               }}
