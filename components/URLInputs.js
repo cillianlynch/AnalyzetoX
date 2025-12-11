@@ -1,8 +1,15 @@
 import { useState } from "react";
 
-export default function URLInputs({ onTranscript, onComments, onArticle, commentsStatus, onCommentsStatusChange }) {
+export default function URLInputs({
+  onTranscript,
+  onComments,
+  onArticle,
+  commentsStatus,
+  onCommentsStatusChange,
+}) {
   const [url, setUrl] = useState("");
   const [status, setStatus] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Pull a videoId out of any common YouTube URL form
   function extractVideoId(url) {
@@ -42,10 +49,18 @@ export default function URLInputs({ onTranscript, onComments, onArticle, comment
       return;
     }
 
-    const videoId = extractVideoId(url.trim());
-    
+    const trimmed = url.trim();
+    const videoId = extractVideoId(trimmed);
+
     // Try YouTube first if it's a YouTube URL
     if (videoId) {
+      setIsLoading(true);
+      const workingMsg = "Analyzing video and loading comments...";
+      setStatus(workingMsg);
+      if (onCommentsStatusChange) {
+        onCommentsStatusChange(workingMsg);
+      }
+
       try {
         const res = await fetch(
           `/api/getComments?videoId=${encodeURIComponent(videoId)}`
@@ -70,13 +85,20 @@ export default function URLInputs({ onTranscript, onComments, onArticle, comment
       } catch (err) {
         console.error(err);
         setStatus("Error: failed to fetch.");
+      } finally {
+        setIsLoading(false);
       }
     } else {
       // Try as article URL
+      setIsLoading(true);
+      const workingMsg = "Extracting article...";
+      setStatus(workingMsg);
+      if (onCommentsStatusChange) {
+        onCommentsStatusChange(workingMsg);
+      }
+
       try {
-        const res = await fetch(
-          "/api/getArticle?url=" + encodeURIComponent(url.trim())
-        );
+        const res = await fetch("/api/getArticle?url=" + encodeURIComponent(trimmed));
         const data = await res.json();
 
         if (data.error) {
@@ -93,6 +115,8 @@ export default function URLInputs({ onTranscript, onComments, onArticle, comment
       } catch (err) {
         console.error(err);
         setStatus("Error: failed to fetch.");
+      } finally {
+        setIsLoading(false);
       }
     }
   }
@@ -106,33 +130,49 @@ export default function URLInputs({ onTranscript, onComments, onArticle, comment
           {displayStatus}
         </p>
       )}
-      <input
-        type="url"
-        value={url}
-        onChange={(e) => {
-          setUrl(e.target.value);
-          // Clear status when user starts typing
-          if (e.target.value) {
-            setStatus("");
-            if (onCommentsStatusChange) {
-              onCommentsStatusChange("");
-            }
-          }
-        }}
-        placeholder="URL of article or video"
-        style={{
-          width: "100%",
-          padding: 12,
-          borderRadius: 4,
-          border: "2px solid #333",
-          fontSize: 16,
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            handleSubmit(e);
-          }
-        }}
-      />
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => {
+              setUrl(e.target.value);
+              // Clear status when user starts typing
+              if (e.target.value) {
+                setStatus("");
+                if (onCommentsStatusChange) {
+                  onCommentsStatusChange("");
+                }
+              }
+            }}
+            placeholder="URL of article or video"
+            style={{
+              width: "100%",
+              padding: 12,
+              borderRadius: 4,
+              border: "2px solid #333",
+              fontSize: 16,
+            }}
+            aria-label="URL of article or video"
+          />
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              padding: "0 16px",
+              borderRadius: 4,
+              border: "2px solid #333",
+              background: isLoading ? "#f5f5f5" : "#222",
+              color: isLoading ? "#777" : "#fff",
+              fontSize: 14,
+              cursor: isLoading ? "not-allowed" : "pointer",
+              minWidth: 110,
+            }}
+          >
+            {isLoading ? "Working..." : "Analyze"}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
