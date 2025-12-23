@@ -1,6 +1,6 @@
 {
-  "name": "Multi-Source Analyzer",
-  "short_name": "Analyzer",
+  "name": "AnalyzetoX",
+  "short_name": "A2X",
   "description": "Analyze videos, screenshots, comments, and text using AI.",
   "start_url": "/",
   "display": "standalone",
