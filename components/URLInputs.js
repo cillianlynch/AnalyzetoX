@@ -190,76 +190,58 @@ export default function URLInputs({
 
   return (
     <div style={{ marginTop: 20 }}>
-      <form onSubmit={handleSubmit}>
-        <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-          <div style={{ flex: 1 }}>
-            <input
-              type="url"
-              value={url}
-              onChange={(e) => {
-                const newUrl = e.target.value;
-                setUrl(newUrl);
-                // Clear status when user starts typing a new URL
-                if (newUrl.trim() !== lastProcessedUrlRef.current) {
-                  setStatus("");
-                  if (onCommentsStatusChange) {
-                    onCommentsStatusChange("");
-                  }
-                }
-              }}
-              onPaste={async (e) => {
-                // Get pasted text from clipboard
-                const pastedText = (e.clipboardData || window.clipboardData).getData('text');
-                const trimmed = pastedText.trim();
-                
-                if (trimmed) {
-                  const videoId = extractVideoId(trimmed);
-                  
-                  // If it's a YouTube URL, trigger analysis immediately
-                  if (videoId && trimmed !== lastProcessedUrlRef.current) {
-                    // Wait a moment for onChange to update state, then trigger with the pasted URL
-                    setTimeout(() => {
-                      handleSubmit(null, trimmed);
-                    }, 100);
-                  }
-                }
-              }}
-              placeholder="URL of article or video"
-              style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 4,
-                border: "2px solid #333",
-                fontSize: 16,
-              }}
-              aria-label="URL of article or video"
-            />
-            {displayStatus && (
-              <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: "#555" }}>
-                {displayStatus}
-              </p>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            style={{
-              padding: "12px 20px",
-              borderRadius: 4,
-              border: "2px solid #333",
-              background: isLoading ? "#f5f5f5" : "#222",
-              color: isLoading ? "#777" : "#fff",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: isLoading ? "not-allowed" : "pointer",
-              minWidth: 110,
-              whiteSpace: "nowrap",
-            }}
-          >
-            {isLoading ? "Working..." : "Analyze"}
-          </button>
-        </div>
-      </form>
+      <input
+        type="url"
+        value={url}
+        onChange={(e) => {
+          const newUrl = e.target.value;
+          setUrl(newUrl);
+          // Clear status when user starts typing a new URL
+          if (newUrl.trim() !== lastProcessedUrlRef.current) {
+            setStatus("");
+            if (onCommentsStatusChange) {
+              onCommentsStatusChange("");
+            }
+          }
+        }}
+        onPaste={async (e) => {
+          // Get pasted text from clipboard
+          const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+          const trimmed = pastedText.trim();
+          
+          if (trimmed) {
+            const videoId = extractVideoId(trimmed);
+            
+            // If it's a YouTube URL, trigger analysis immediately
+            if (videoId && trimmed !== lastProcessedUrlRef.current) {
+              // Wait a moment for onChange to update state, then trigger with the pasted URL
+              setTimeout(() => {
+                handleSubmit(null, trimmed);
+              }, 100);
+            }
+          }
+        }}
+        onKeyDown={(e) => {
+          // Allow Enter key to trigger submission if needed
+          if (e.key === "Enter") {
+            handleSubmit(e);
+          }
+        }}
+        placeholder="URL of article or video"
+        style={{
+          width: "100%",
+          padding: 12,
+          borderRadius: 4,
+          border: "2px solid #333",
+          fontSize: 16,
+        }}
+        aria-label="URL of article or video"
+      />
+      {displayStatus && (
+        <p style={{ marginTop: 8, marginBottom: 0, fontSize: 14, color: "#555" }}>
+          {displayStatus}
+        </p>
+      )}
     </div>
   );
 }
