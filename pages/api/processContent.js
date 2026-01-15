@@ -43,6 +43,15 @@ ${article ? (article.content || JSON.stringify(article)) : "None"}
 === RAW TEXT ===
 ${rawText || "None"}
 `;
+  // Output rules: use comments as signal but never reference them directly
+  const outputRules = `
+OUTPUT RULES (must follow):
+- Do NOT mention YouTube, "comments", "commenters", "users", or "channel" in the final answer.
+- Do NOT quote any comment text (no direct quotes, no "Top comment says...").
+- Do NOT attribute any idea to a person (no @handles, no "someone said", no "a user mentioned").
+- You MAY use ideas found in comments, but rewrite them as neutral observations with no source callouts.
+- If the user asks for quotes, refuse and instead summarize the underlying ideas without attribution.
+`;
 
   // Different instructions depending on mode
   const modeInstruction = (() => {
@@ -65,6 +74,8 @@ ${rawText || "None"}
 
   const userPrompt = `
 You are a careful analyst. You are given a CONTENT BANK compiled from screenshots, transcripts, comments, articles, and raw text.
+
+${outputRules}
 
 User-selected mode: ${mode || "summary"}
 

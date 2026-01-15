@@ -4,6 +4,7 @@ import FileUploader from "../components/FileUploader";
 import URLInputs from "../components/URLInputs";
 import ModeSelector from "../components/ModeSelector";
 import RawTextInput from "../components/RawTextInput";
+import { extractYouTubeVideoId } from "../lib/youtube";
 
 function stripHtml(html) {
   if (!html) return "";
@@ -20,6 +21,9 @@ export default function Home() {
   const [mode, setMode] = useState("summary");
   const [loading, setLoading] = useState(false);
   const [commentsStatus, setCommentsStatus] = useState("");
+  const [fallbackUrl, setFallbackUrl] = useState("");
+  const [fallbackTitle, setFallbackTitle] = useState("");
+  const [fallbackHandle, setFallbackHandle] = useState("");
 
     // When screenshot is uploaded
   function handleScreenshotUpload(data) {
@@ -73,6 +77,7 @@ export default function Home() {
     // Use videoId from a screenshot to fetch YouTube comments
   async function handleFetchCommentsFromScreenshot(videoId) {
     if (!videoId) return;
+    setCommentsStatus("Loading comments...");
 
     try {
       const res = await fetch(
@@ -91,6 +96,45 @@ export default function Home() {
       }
     } catch (err) {
       console.error("handleFetchCommentsFromScreenshot error:", err);
+    }
+  }
+
+  async function handleFetchCommentsFallback() {
+    setCommentsStatus("Trying to find the video...");
+
+    const urlId = extractYouTubeVideoId(fallbackUrl);
+    const params = new URLSearchParams();
+
+    if (urlId) {
+      params.set("videoId", urlId);
+    } else if (fallbackUrl && fallbackUrl.trim()) {
+      params.set("url", fallbackUrl.trim());
+    } else {
+      if (fallbackTitle && fallbackTitle.trim()) params.set("title", fallbackTitle.trim());
+      if (fallbackHandle && fallbackHandle.trim()) params.set("handle", fallbackHandle.trim());
+    }
+
+    if ([...params.keys()].length === 0) {
+      setCommentsStatus("Paste a YouTube link, or enter title + @handle.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/getComments?${params.toString()}`);
+      const data = await res.json();
+
+      if (data.error) {
+        setCommentsStatus(`Error: ${data.error}`);
+        return;
+      }
+
+      if (Array.isArray(data.comments)) {
+        setComments(data.comments);
+        setCommentsStatus(`Comments loaded ✔ (${data.comments.length})`);
+      }
+    } catch (err) {
+      console.error("handleFetchCommentsFallback error:", err);
+      setCommentsStatus("Error: failed to fetch comments.");
     }
   }
 
@@ -153,6 +197,83 @@ export default function Home() {
               </li>
             ))}
           </ul>
+
+          {/* Mobile fallback: no videoId in screenshot */}
+          {screenshots.some((s) => !s?.videoId) && (
+            <div
+              style={{
+                marginTop: 12,
+                padding: 12,
+                borderRadius: 8,
+                border: "1px solid #ddd",
+                background: "#fff",
+              }}
+            >
+              <h4 style={{ marginTop: 0, marginBottom: 8 }}>
+                Can’t detect the video from the screenshot?
+              </h4>
+
+              <div style={{ display: "grid", gap: 8 }}>
+                <input
+                  type="url"
+                  value={fallbackUrl}
+                  onChange={(e) => setFallbackUrl(e.target.value)}
+                  placeholder="Paste YouTube link (recommended)"
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                    fontSize: 14,
+                  }}
+                />
+
+                <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 220px" }}>
+                  <input
+                    type="text"
+                    value={fallbackTitle}
+                    onChange={(e) => setFallbackTitle(e.target.value)}
+                    placeholder="Or enter video title"
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      borderRadius: 6,
+                      border: "1px solid #ccc",
+                      fontSize: 14,
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={fallbackHandle}
+                    onChange={(e) => setFallbackHandle(e.target.value)}
+                    placeholder="@channelhandle"
+                    style={{
+                      width: "100%",
+                      padding: 10,
+                      borderRadius: 6,
+                      border: "1px solid #ccc",
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleFetchCommentsFallback}
+                  style={{
+                    padding: "10px 12px",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    border: "1px solid #ccc",
+                    background: "#f5f5f5",
+                    width: "fit-content",
+                  }}
+                >
+                  Find video + load comments
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

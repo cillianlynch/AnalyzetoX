@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { extractYouTubeVideoId } from "../lib/youtube";
 
 export default function URLInputs({
   onTranscript,
@@ -13,35 +14,6 @@ export default function URLInputs({
   const timeoutRef = useRef(null);
   const lastProcessedUrlRef = useRef("");
   const isLoadingRef = useRef(false);
-
-  // Pull a videoId out of any common YouTube URL form
-  function extractVideoId(url) {
-    try {
-      if (!url) return null;
-      const u = new URL(url.trim());
-
-      // youtu.be/VIDEOID
-      if (u.hostname === "youtu.be") {
-        return u.pathname.slice(1);
-      }
-
-      // youtube.com/watch?v=VIDEOID
-      if (u.hostname.includes("youtube.com") && u.searchParams.get("v")) {
-        return u.searchParams.get("v");
-      }
-
-      // youtube.com/shorts/VIDEOID
-      const parts = u.pathname.split("/");
-      const shortsIndex = parts.indexOf("shorts");
-      if (shortsIndex !== -1 && parts[shortsIndex + 1]) {
-        return parts[shortsIndex + 1];
-      }
-
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
 
   async function handleSubmit(e, urlToProcess = null) {
     if (e && e.preventDefault) {
@@ -63,7 +35,7 @@ export default function URLInputs({
     lastProcessedUrlRef.current = trimmed;
     setStatus("");
 
-    const videoId = extractVideoId(trimmed);
+    const videoId = extractYouTubeVideoId(trimmed);
 
     // Try YouTube first if it's a YouTube URL
     if (videoId) {
@@ -156,7 +128,7 @@ export default function URLInputs({
     // Don't auto-trigger if we just processed this URL
     if (trimmed === lastProcessedUrlRef.current) return;
 
-    const videoId = extractVideoId(trimmed);
+    const videoId = extractYouTubeVideoId(trimmed);
     
     // For YouTube URLs, trigger immediately (shorter delay)
     if (videoId) {
@@ -210,7 +182,7 @@ export default function URLInputs({
           const trimmed = pastedText.trim();
           
           if (trimmed) {
-            const videoId = extractVideoId(trimmed);
+            const videoId = extractYouTubeVideoId(trimmed);
             
             // If it's a YouTube URL, trigger analysis immediately
             if (videoId && trimmed !== lastProcessedUrlRef.current) {
