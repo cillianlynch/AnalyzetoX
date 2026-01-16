@@ -26,12 +26,36 @@ export default function Home() {
   const [fallbackHandle, setFallbackHandle] = useState("");
 
     // When screenshot is uploaded
-  function handleScreenshotUpload(data) {
+  async function handleScreenshotUpload(data) {
     setScreenshots((prev) => [...prev, data]);
 
     // If Vision found a YouTube videoId, auto-load comments for that video
     if (data && data.videoId) {
       handleFetchCommentsFromScreenshot(data.videoId);
+    } else if (data && data.title && data.handle) {
+      // If videoId is missing but we have title + handle, try to auto-resolve
+      setCommentsStatus("Finding video from title + @handle...");
+      try {
+        const params = new URLSearchParams();
+        params.set("title", data.title.trim());
+        params.set("handle", data.handle.trim());
+        
+        const res = await fetch(`/api/getComments?${params.toString()}`);
+        const data = await res.json();
+
+        if (data.error) {
+          setCommentsStatus(`Could not find video: ${data.error}`);
+          return;
+        }
+
+        if (Array.isArray(data.comments)) {
+          setComments(data.comments);
+          setCommentsStatus(`Comments loaded ✔ (${data.comments.length})`);
+        }
+      } catch (err) {
+        console.error("Auto-resolve video from title+handle error:", err);
+        setCommentsStatus("Could not automatically find video. Try manual entry below.");
+      }
     }
   }
 
@@ -171,6 +195,8 @@ export default function Home() {
                 Title: {shot.title || "—"}
                 <br />
                 Channel: {shot.channel || "—"}
+                <br />
+                Handle: {shot.handle || "—"}
                 <br />
                 Video ID: {shot.videoId || "—"}
                 <br />

@@ -26,7 +26,7 @@ function parseForm(req) {
   });
 }
 
-// Try to recover title/channel/videoId from the long description text
+// Try to recover title/channel/handle/videoId from the long description text
 function enrichFromDescription(result) {
   const desc = result.description || "";
 
@@ -43,6 +43,14 @@ function enrichFromDescription(result) {
     const m = desc.match(/uploaded by the\s+([^,]+?) channel/i);
     if (m) {
       result.channel = m[1].trim();
+    }
+  }
+
+  if (!result.handle) {
+    // Look for @handle pattern in description
+    const m = desc.match(/@([A-Za-z0-9_.-]+)/);
+    if (m) {
+      result.handle = `@${m[1].trim()}`;
     }
   }
 
@@ -106,13 +114,15 @@ Return ONLY a JSON object with EXACTLY these keys:
 {
   "title": string or null,
   "channel": string or null,
+  "handle": string or null,
   "videoId": string or null,
   "description": string
 }
 
 Rules:
 - If you can clearly read the YouTube video title, put it in "title". Otherwise use null.
-- If you can clearly read the channel name, put it in "channel". Otherwise use null.
+- If you can clearly read the channel name (display name), put it in "channel". Otherwise use null.
+- If you can see a channel handle like "@channelname" (with the @ symbol), put it in "handle" (include the @ symbol). Otherwise use null.
 - If you see a URL like "watch?v=XXXX", put "XXXX" in "videoId". Otherwise use null.
 - "description" should be a short plain-text description of what you see (UI elements, subtitles, slides, etc.).
 - Do NOT include any extra keys or extra text outside the JSON.
@@ -148,6 +158,7 @@ Rules:
     let result = {
       title: parsed.title ?? null,
       channel: parsed.channel ?? null,
+      handle: parsed.handle ?? null,
       videoId: parsed.videoId ?? null,
       description:
         typeof parsed.description === "string" && parsed.description.trim().length
@@ -168,6 +179,7 @@ Rules:
     return res.status(200).json({
       title: null,
       channel: null,
+      handle: null,
       videoId: null,
       description:
         "Screenshot uploaded, but Vision analysis failed. Using placeholder description instead.",
