@@ -1,296 +1,359 @@
-import { useState } from "react";
 import { useRouter } from "next/router";
-import FileUploader from "../components/FileUploader";
-import URLInputs from "../components/URLInputs";
-import ModeSelector from "../components/ModeSelector";
-import RawTextInput from "../components/RawTextInput";
-
-function stripHtml(html) {
-  if (!html) return "";
-  return html.replace(/<[^>]+>/g, " ");
-}
+import Head from "next/head";
 
 export default function Home() {
   const router = useRouter();
-  const [screenshots, setScreenshots] = useState([]);
-  const [transcript, setTranscript] = useState(null);
-  const [comments, setComments] = useState(null);
-  const [article, setArticle] = useState(null);
-  const [rawText, setRawText] = useState("");
-  const [mode, setMode] = useState("summary");
-  const [loading, setLoading] = useState(false);
-  const [commentsStatus, setCommentsStatus] = useState("");
-
-    // When screenshot is uploaded
-  async function handleScreenshotUpload(data) {
-    setScreenshots((prev) => [...prev, data]);
-
-    // If Vision found a YouTube videoId, auto-load comments for that video
-    if (data && data.videoId) {
-      handleFetchCommentsFromScreenshot(data.videoId);
-    } else if (data && data.title && data.handle) {
-      // If videoId is missing but we have title + handle, try to auto-resolve
-      setCommentsStatus("Finding video from title + @handle...");
-      try {
-        const params = new URLSearchParams();
-        params.set("title", data.title.trim());
-        params.set("handle", data.handle.trim());
-        
-        const res = await fetch(`/api/getComments?${params.toString()}`);
-        const commentsResData = await res.json();
-
-        if (commentsResData.error) {
-          setCommentsStatus(`Could not find video: ${commentsResData.error}`);
-          return;
-        }
-
-        if (Array.isArray(commentsResData.comments)) {
-          setComments(commentsResData.comments);
-          setCommentsStatus(`Comments loaded ✔ (${commentsResData.comments.length})`);
-        }
-      } catch (err) {
-        console.error("Auto-resolve video from title+handle error:", err);
-        setCommentsStatus("Could not automatically find video. Try manual entry below.");
-      }
-    }
-  }
-
-
-  function handleTranscript(data) {
-    setTranscript(data);
-  }
-
-  function handleComments(data) {
-    setComments(data);
-  }
-
-  function handleArticle(data) {
-    setArticle(data);
-  }
-
-  async function handleGenerate() {
-    setLoading(true);
-
-    const res = await fetch("/api/processContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        screenshots,
-        transcript,
-        comments,
-        article,
-        rawText,
-        mode,
-      }),
-    });
-
-    const data = await res.json();
-    setLoading(false);
-    
-    // Store output in sessionStorage and navigate to results page
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem("aiOutput", data.output);
-      sessionStorage.setItem("outputMode", mode);
-      router.push("/results");
-    }
-  }
-    // Use videoId from a screenshot to fetch YouTube comments
-  async function handleFetchCommentsFromScreenshot(videoId) {
-    if (!videoId) return;
-    setCommentsStatus("Loading comments...");
-
-    try {
-      const res = await fetch(
-        `/api/getComments?videoId=${encodeURIComponent(videoId)}`
-      );
-      const data = await res.json();
-
-      if (data.error) {
-        console.error("Error fetching comments from screenshot video:", data.error);
-        return;
-      }
-
-      if (Array.isArray(data.comments)) {
-        setComments(data.comments);
-        setCommentsStatus(`Comments loaded ✔ (${data.comments.length})`);
-      }
-    } catch (err) {
-      console.error("handleFetchCommentsFromScreenshot error:", err);
-    }
-  }
-
-
-  // Derived info for Sources summary
-  const screenshotCount = Array.isArray(screenshots) ? screenshots.length : 0;
-  const commentsCount = Array.isArray(comments) ? comments.length : 0;
-  const transcriptStatus = transcript
-    ? typeof transcript === "string"
-      ? "Loaded (manual text)"
-      : "Loaded (API/structured)"
-    : "None";
-  const articleStatus = article
-    ? article.title
-      ? `Loaded – "${article.title}"`
-      : "Loaded"
-    : "None";
-  const rawTextChars = rawText ? rawText.length : 0;
 
   return (
-    <div style={{ padding: "20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
-      <h1 style={{ position: "fixed", top: "20px", left: "20px", margin: 0 }}>AnalyzetoX</h1>
+    <>
+      <Head>
+        <title>AnalyzetoX - New Design</title>
+        <link rel="preconnect" href="https://fonts.cdnfonts.com" />
+        <link href="https://fonts.cdnfonts.com/css/academy-engraved-let" rel="stylesheet" />
+        <link href="https://fonts.cdnfonts.com/css/big-caslon" rel="stylesheet" />
+      </Head>
 
-      <FileUploader onUpload={handleScreenshotUpload} />
-      {screenshots.length > 0 && <p>1 screenshot added.</p>}
-
-      {screenshots.length > 0 && (
-        <div style={{ marginTop: "10px" }}>
-          <h3>Screenshot details (debug)</h3>
-          <ul style={{ paddingLeft: 18, fontSize: 13 }}>
-            {screenshots.map((shot, idx) => (
-              <li key={idx} style={{ marginBottom: 10 }}>
-                <strong>Screenshot {idx + 1}</strong>
-                <br />
-                Title: {shot.title || "—"}
-                <br />
-                Channel: {shot.channel || "—"}
-                <br />
-                Handle: {shot.handle || "—"}
-                <br />
-                Video ID: {shot.videoId || "—"}
-                <br />
-                Description: {shot.description || "—"}
-                <br />
-                {shot.videoId && (
-                  <button
-                    onClick={() =>
-                      handleFetchCommentsFromScreenshot(shot.videoId)
-                    }
-                    style={{
-                      marginTop: 4,
-                      padding: "4px 8px",
-                      fontSize: 12,
-                      cursor: "pointer",
-                      borderRadius: 4,
-                      border: "1px solid #ccc",
-                      background: "#f5f5f5",
-                    }}
-                  >
-                    Load comments for this video
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+      <div style={{ minHeight: "100vh", backgroundColor: "#000" }}>
+        {/* Retro Grid Background */}
+        <div className="grid-background">
+          <div className="perspective-grid"></div>
         </div>
-      )}
 
-      <p style={{ textAlign: "center", marginTop: 20, marginBottom: 0, fontSize: 16 }}>or</p>
+        {/* Content on top */}
+        <div style={{
+          position: "relative",
+          zIndex: 10,
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "2rem"
+        }}>
+          <div style={{
+            maxWidth: "80rem",
+            width: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4rem"
+          }}>
+            {/* Top Stack (3 connected boxes) */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {/* Logo Box (Biggest) */}
+              <div style={{ position: "relative", width: "1000px" }}>
+                <div style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  left: "0.5rem",
+                  backgroundColor: "#fff",
+                  borderRadius: "1rem",
+                  width: "100%",
+                  height: "100%"
+                }}></div>
+                <div style={{
+                  position: "relative",
+                  backgroundColor: "#000",
+                  border: "4px solid #fff",
+                  borderRadius: "1rem",
+                  padding: "3rem",
+                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <h1 className="caslon-font" style={{
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.25rem",
+                    fontSize: "70px",
+                    margin: 0
+                  }}>
+                    Analyzeto
+                    <svg style={{
+                      display: "inline-block",
+                      marginLeft: "0.25rem",
+                      width: "70px",
+                      height: "70px"
+                    }} viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </h1>
+                </div>
+              </div>
+              
+              {/* Tagline Box (Medium) */}
+              <div style={{ position: "relative", width: "900px", marginTop: "-1rem" }}>
+                <div style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  left: "0.5rem",
+                  backgroundColor: "#fff",
+                  borderRadius: "1rem",
+                  width: "100%",
+                  height: "100%"
+                }}></div>
+                <div style={{
+                  position: "relative",
+                  backgroundColor: "#000",
+                  border: "4px solid #fff",
+                  borderRadius: "1rem",
+                  padding: "2rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    width: "100%"
+                  }}>
+                    <span className="typewriter academy-font" id="typewriter1" style={{
+                      color: "#fff",
+                      fontSize: "35px"
+                    }}>Turn any video into an X thread people actually read.</span>
+                  </div>
+                </div>
+              </div>
 
-   <URLInputs
-     onTranscript={handleTranscript} 
-     onComments={handleComments}
-     onArticle={handleArticle}
-     commentsStatus={commentsStatus}
-     onCommentsStatusChange={setCommentsStatus}
-   />
+              {/* Subheading Box (Smallest) */}
+              <div style={{ position: "relative", width: "800px", marginTop: "-1rem" }}>
+                <div style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  left: "0.5rem",
+                  backgroundColor: "#fff",
+                  borderRadius: "1rem",
+                  width: "100%",
+                  height: "100%"
+                }}></div>
+                <div style={{
+                  position: "relative",
+                  backgroundColor: "#000",
+                  border: "4px solid #fff",
+                  borderRadius: "1rem",
+                  padding: "1.5rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <div style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    width: "100%",
+                    textAlign: "center"
+                  }}>
+                    <span className="typewriter-second academy-font" id="typewriter2" style={{
+                      color: "#fff",
+                      fontSize: "27px",
+                      display: "inline-block"
+                    }}>AI summary + real crowd reaction = threads that feel human.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-   {transcript && <p>Transcript loaded ✔</p>}
-   {article && <p>Article extracted ✔</p>}
+            {/* Bottom Stack (2 connected boxes) */}
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              {/* Try Demo Button (Smaller) */}
+              <div style={{ position: "relative", width: "650px" }}>
+                <div style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  left: "0.5rem",
+                  backgroundColor: "#fff",
+                  borderRadius: "1rem",
+                  width: "100%",
+                  height: "100%"
+                }}></div>
+                <button
+                  onClick={() => router.push("/demo")}
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    backgroundColor: "#000",
+                    border: "4px solid #fff",
+                    borderRadius: "1rem",
+                    padding: "1.5rem 2rem",
+                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#111827";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#000";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <span className="caslon-font" style={{
+                    color: "#fff",
+                    position: "relative",
+                    zIndex: 10,
+                    fontSize: "32px"
+                  }}>Try Demo</span>
+                </button>
+              </div>
 
-   {/* Transcript preview */}
-   {transcript && (
-     <div style={{ marginTop: "10px" }}>
-       <h3>Transcript preview (raw)</h3>
-       <pre
-         style={{
-           whiteSpace: "pre-wrap",
-           maxHeight: "200px",
-           overflow: "auto",
-           background: "#f5f5f5",
-           padding: "10px",
-         }}
-       >
-         {JSON.stringify(transcript, null, 2)}
-       </pre>
-     </div>
-   )}
-
-        {/* Article preview */}
-      {article && (
-        <div style={{ marginTop: "10px" }}>
-          <h3>Article preview</h3>
-          <p>
-            <strong>Title:</strong> {article.title}
-          </p>
-          <pre
-            style={{
-              whiteSpace: "pre-wrap",
-              maxHeight: "200px",
-              overflow: "auto",
-              background: "#f5f5f5",
-              padding: "10px",
-            }}
-          >
-            {article.content
-              ? (() => {
-                  const plain = stripHtml(article.content);
-                  return plain.slice(0, 1000) +
-                    (plain.length > 1000 ? "..." : "");
-                })()
-              : "No article content found."}
-          </pre>
+              {/* Generate Thread Button (Bigger) */}
+              <div style={{ position: "relative", width: "750px", marginTop: "-1rem" }}>
+                <div style={{
+                  position: "absolute",
+                  top: "0.5rem",
+                  left: "0.5rem",
+                  backgroundColor: "#fff",
+                  borderRadius: "1rem",
+                  width: "100%",
+                  height: "100%"
+                }}></div>
+                <button
+                  onClick={() => router.push("/app")}
+                  style={{
+                    position: "relative",
+                    width: "100%",
+                    backgroundColor: "#000",
+                    border: "4px solid #fff",
+                    borderRadius: "1rem",
+                    padding: "2rem 3rem",
+                    textAlign: "center",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#111827";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#000";
+                    e.currentTarget.style.transform = "scale(1)";
+                  }}
+                >
+                  <span className="caslon-font" style={{
+                    color: "#fff",
+                    position: "relative",
+                    zIndex: 10,
+                    fontSize: "40px"
+                  }}>Generate Thread</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-
-
-
-      <RawTextInput text={rawText} setText={setRawText} />
-
-      <ModeSelector mode={mode} setMode={setMode} />
-
-      <div style={{ textAlign: "center", marginTop: "20px" }}>
-        <button
-          onClick={handleGenerate}
-          disabled={loading}
-          style={{
-            padding: "10px 20px",
-            fontSize: "16px",
-          }}
-        >
-          {loading ? "Generating..." : "Generate Output"}
-        </button>
       </div>
 
-      {/* Sources summary panel */}
-      <div
-        style={{
-          marginTop: 20,
-          marginBottom: 20,
-          padding: 12,
-          borderRadius: 8,
-          border: "1px solid #ddd",
-          background: "#fafafa",
-          fontSize: 14,
+      <style jsx>{`
+        .academy-font {
+          font-family: 'Academy Engraved LET', serif;
+        }
+
+        .caslon-font {
+          font-family: 'Big Caslon', serif;
+          font-weight: bold;
+        }
+
+        .typewriter {
+          overflow: hidden;
+          border-right: 2px solid white;
+          white-space: nowrap;
+          animation: typing 2s steps(60, end), blink-caret 0.75s step-end infinite;
+        }
+
+        .typewriter-second {
+          overflow: hidden;
+          border-right: 2px solid white;
+          white-space: nowrap;
+          animation: typing 2s steps(70, end) 0.5s both, blink-caret 0.75s step-end infinite 0.5s;
+        }
+
+        @keyframes typing {
+          from { width: 0 }
+          to { width: 100% }
+        }
+
+        @keyframes blink-caret {
+          from, to { border-color: transparent }
+          50% { border-color: white; }
+        }
+
+        .typewriter-done {
+          border-right: none;
+        }
+
+        /* Retro grid background */
+        .grid-background {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 60vh;
+          overflow: hidden;
+          z-index: 0;
+          perspective: 500px;
+        }
+
+        .perspective-grid {
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          height: 150%;
+          transform-origin: bottom center;
+          transform: rotateX(75deg);
+          background-image: 
+            linear-gradient(0deg, transparent 49%, rgba(255, 255, 255, 0.4) 49%, rgba(255, 255, 255, 0.4) 51%, transparent 51%),
+            linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.4) 49%, rgba(255, 255, 255, 0.4) 51%, transparent 51%);
+          background-size: 100px 100px;
+          background-position: 0 0;
+          animation: gridMove 15s linear infinite;
+          mask-image: linear-gradient(to bottom, 
+            rgba(0, 0, 0, 0) 0%, 
+            rgba(0, 0, 0, 0.5) 20%, 
+            rgba(0, 0, 0, 1) 40%, 
+            rgba(0, 0, 0, 1) 100%);
+          -webkit-mask-image: linear-gradient(to bottom, 
+            rgba(0, 0, 0, 0) 0%, 
+            rgba(0, 0, 0, 0.5) 20%, 
+            rgba(0, 0, 0, 1) 40%, 
+            rgba(0, 0, 0, 1) 100%);
+        }
+
+        @keyframes gridMove {
+          0% {
+            background-position: 0 0;
+          }
+          100% {
+            background-position: 0 100px;
+          }
+        }
+      `}</style>
+
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `
+            setTimeout(() => {
+              const el1 = document.getElementById('typewriter1');
+              if (el1) el1.classList.add('typewriter-done');
+            }, 2750);
+            
+            setTimeout(() => {
+              const el2 = document.getElementById('typewriter2');
+              if (el2) el2.classList.add('typewriter-done');
+            }, 3250);
+          `,
         }}
-      >
-        <h3 style={{ marginTop: 0, marginBottom: 8 }}>Sources summary</h3>
-        <ul style={{ margin: 0, paddingLeft: 18 }}>
-          <li>{screenshotCount} screenshot(s)</li>
-          <li>Transcript: {transcriptStatus}</li>
-          <li>
-            Comments:{" "}
-            {commentsCount > 0 ? `${commentsCount} loaded` : "None"}
-          </li>
-          <li>Article: {articleStatus}</li>
-          <li>
-            Raw text:{" "}
-            {rawTextChars > 0
-              ? `${rawTextChars} character(s)`
-              : "None"}
-          </li>
-        </ul>
-      </div>
-
-    </div>
+      />
+    </>
   );
 }

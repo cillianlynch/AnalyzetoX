@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnalyzetoX - Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @import url('https://fonts.cdnfonts.com/css/academy-engraved-let');
+      @import url('https://fonts.cdnfonts.com/css/big-caslon');
+      
+      .academy-font {
+        font-family: 'Academy Engraved LET', serif;
+      }
+
+      .caslon-font {
+        font-family: 'Big Caslon', serif;
+        font-weight: bold;
+      }
+
+      /* Retro grid background */
+      .grid-background {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 60vh;
+        overflow: hidden;
+        z-index: 0;
+        perspective: 500px;
+      }
+
+      .perspective-grid {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: 150%;
+        transform-origin: bottom center;
+        transform: rotateX(75deg);
+        background-image: 
+          linear-gradient(0deg, transparent 49%, rgba(255, 255, 255, 0.4) 49%, rgba(255, 255, 255, 0.4) 51%, transparent 51%),
+          linear-gradient(90deg, transparent 49%, rgba(255, 255, 255, 0.4) 49%, rgba(255, 255, 255, 0.4) 51%, transparent 51%);
+        background-size: 100px 100px;
+        background-position: 0 0;
+        animation: gridMove 15s linear infinite;
+        mask-image: linear-gradient(to bottom, 
+          rgba(0, 0, 0, 0) 0%, 
+          rgba(0, 0, 0, 0.5) 20%, 
+          rgba(0, 0, 0, 1) 40%, 
+          rgba(0, 0, 0, 1) 100%);
+        -webkit-mask-image: linear-gradient(to bottom, 
+          rgba(0, 0, 0, 0) 0%, 
+          rgba(0, 0, 0, 0.5) 20%, 
+          rgba(0, 0, 0, 1) 40%, 
+          rgba(0, 0, 0, 1) 100%);
+      }
+
+      @keyframes gridMove {
+        0% {
+          background-position: 0 0;
+        }
+        100% {
+          background-position: 0 100px;
+        }
+      }
+
+      .loading {
+        display: inline-block;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      .thread-tweet {
+        background: #16181c;
+        border: 1px solid #2f3336;
+        border-radius: 16px;
+        padding: 16px;
+        margin-bottom: 12px;
+      }
+
+      .tweet-number {
+        display: inline-block;
+        background: #1d9bf0;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        text-align: center;
+        line-height: 24px;
+        font-size: 12px;
+        font-weight: bold;
+        margin-right: 8px;
+      }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen">
+    <!-- Retro Grid Background -->
+    <div class="grid-background">
+      <div class="perspective-grid"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="relative z-10 container mx-auto px-8 py-12">
+      <!-- Header with back button -->
+      <div class="mb-12">
+        <a href="index.html" class="inline-flex items-center text-white hover:text-gray-300 transition">
+          <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back to Home
+        </a>
+      </div>
+
+      <!-- Demo Title -->
+      <div class="text-center mb-16">
+        <h1 class="caslon-font text-6xl mb-4">Try the Demo</h1>
+        <p class="academy-font text-2xl text-gray-300">See AnalyzetoX in action</p>
+      </div>
+
+      <!-- Demo Content -->
+      <div class="max-w-4xl mx-auto space-y-8">
+        <!-- Input Section -->
+        <div class="relative">
+          <div class="absolute top-2 left-2 bg-white rounded-2xl w-full h-full"></div>
+          <div class="relative bg-black border-4 border-white rounded-2xl p-8">
+            <h2 class="caslon-font text-3xl mb-6">Enter YouTube URL</h2>
+            <input 
+              type="text" 
+              id="videoUrl"
+              value="https://www.youtube.com/watch?v=d0yGdNEWdn0"
+              class="w-full p-4 rounded-lg bg-gray-900 text-white border-2 border-gray-700 focus:outline-none focus:border-white transition"
+            />
+            <button 
+              id="analyzeBtn"
+              onclick="analyzeVideo()"
+              class="mt-4 w-full bg-white text-black caslon-font text-2xl py-4 rounded-lg hover:bg-gray-200 transition">
+              Analyze Video
+            </button>
+          </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="relative" id="resultsSection" style="display: none;">
+          <div class="absolute top-2 left-2 bg-white rounded-2xl w-full h-full"></div>
+          <div class="relative bg-black border-4 border-white rounded-2xl p-8">
+            <h2 class="caslon-font text-3xl mb-6">Generated Thread</h2>
+            <div id="resultsContent"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function analyzeVideo() {
+        const btn = document.getElementById('analyzeBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsContent = document.getElementById('resultsContent');
+        
+        // Show loading state
+        btn.innerHTML = '<span class="loading">⟳</span> Analyzing...';
+        btn.disabled = true;
+        
+        // Simulate API call delay
+        setTimeout(() => {
+          // Hide loading, show results
+          btn.innerHTML = 'Analyze Video';
+          btn.disabled = false;
+          resultsSection.style.display = 'block';
+          
+          // Display demo thread
+          resultsContent.innerHTML = `
+            <div class="space-y-3">
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">1</span>
+                  <span class="text-gray-400 text-sm">🧵 Thread</span>
+                </div>
+                <p class="text-white text-lg">Ever wondered why some product launches go viral while others flop? 🚀</p>
+                <p class="text-white text-lg mt-2">This breakdown reveals the exact framework successful founders use to create launch campaigns people can't stop talking about.</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">2</span>
+                </div>
+                <p class="text-white text-lg">The problem: Most founders treat launches like a one-day event.</p>
+                <p class="text-white text-lg mt-2">They build in silence, then suddenly expect the world to care.</p>
+                <p class="text-white text-lg mt-2">Reality: The best launches start 90 days before "launch day."</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">3</span>
+                </div>
+                <p class="text-white text-lg">Here's the framework that consistently works:</p>
+                <p class="text-white text-lg mt-2">Phase 1: Build anticipation (Days 1-30)<br>
+                Phase 2: Create scarcity (Days 31-60)<br>
+                Phase 3: Trigger FOMO (Days 61-90)<br>
+                Phase 4: Launch & amplify (Day 90+)</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">4</span>
+                </div>
+                <p class="text-white text-lg">Phase 1 is all about teasing the problem you're solving.</p>
+                <p class="text-white text-lg mt-2">Don't reveal the solution yet.</p>
+                <p class="text-white text-lg mt-2">Just make people nod and think "YES, I have this exact problem!"</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">5</span>
+                </div>
+                <p class="text-white text-lg">Phase 2: Start showing glimpses of your solution.</p>
+                <p class="text-white text-lg mt-2">Screenshots. Demo videos. Beta tester reactions.</p>
+                <p class="text-white text-lg mt-2">But always keep something hidden. Always leave them wanting more.</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">6</span>
+                </div>
+                <p class="text-white text-lg">Phase 3: This is where the magic happens.</p>
+                <p class="text-white text-lg mt-2">Open a waitlist. Share how many people joined.<br>
+                Drop hints about exclusive launch perks.<br>
+                Show real people getting real results in beta.</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">7</span>
+                </div>
+                <p class="text-white text-lg">Launch day isn't the finish line—it's the starting gun. 🏁</p>
+                <p class="text-white text-lg mt-2">Your launch week should be packed with:<br>
+                • Live demos<br>
+                • User testimonials<br>
+                • Limited-time offers<br>
+                • Behind-the-scenes content</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">8</span>
+                </div>
+                <p class="text-white text-lg">The secret sauce? Authenticity.</p>
+                <p class="text-white text-lg mt-2">Share your struggles. Your pivots. Your "oh crap" moments.</p>
+                <p class="text-white text-lg mt-2">People don't connect with perfect—they connect with real.</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">9</span>
+                </div>
+                <p class="text-white text-lg">Want to 10x your launch results?</p>
+                <p class="text-white text-lg mt-2">Partner with micro-influencers in your niche BEFORE you launch.</p>
+                <p class="text-white text-lg mt-2">Give them early access. Make them feel like insiders.</p>
+                <p class="text-white text-lg mt-2">They'll become your biggest advocates on launch day.</p>
+              </div>
+
+              <div class="thread-tweet">
+                <div class="mb-2">
+                  <span class="tweet-number">10</span>
+                </div>
+                <p class="text-white text-lg">Bottom line: Great launches aren't about having a huge audience.</p>
+                <p class="text-white text-lg mt-2">They're about creating a story people want to be part of.</p>
+                <p class="text-white text-lg mt-2">Start building that story today. 🚀</p>
+              </div>
+            </div>
+
+            <div class="mt-8 pt-8 border-t border-gray-700">
+              <button class="w-full bg-blue-500 text-white caslon-font text-xl py-3 rounded-lg hover:bg-blue-600 transition">
+                Copy Thread to Clipboard
+              </button>
+            </div>
+          `;
+          
+          // Scroll to results
+          resultsSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 2000);
+      }
+    </script>
+</body>
+</html>
