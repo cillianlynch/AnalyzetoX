@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
-import Head from "next/head";
 import FileUploader from "../components/FileUploader";
 import URLInputs from "../components/URLInputs";
 import ModeSelector from "../components/ModeSelector";
@@ -19,7 +18,7 @@ export default function App() {
   const [comments, setComments] = useState(null);
   const [article, setArticle] = useState(null);
   const [rawText, setRawText] = useState("");
-  const [mode, setMode] = useState("summary");
+  const [mode, setMode] = useState("thread_medium");
   const [tone, setTone] = useState("balanced");
   const [loading, setLoading] = useState(false);
   const [commentsStatus, setCommentsStatus] = useState("");
@@ -140,300 +139,195 @@ export default function App() {
     : "None";
   const articleStatus = article
     ? article.title
-      ? `Loaded — "${article.title}"`
+      ? `Loaded – "${article.title}"`
       : "Loaded"
     : "None";
   const rawTextChars = rawText ? rawText.length : 0;
 
   return (
-    <>
-      <Head>
-        <title>AnalyzetoX - App</title>
-        <link rel="preconnect" href="https://fonts.cdnfonts.com" />
-        <link
-          href="https://fonts.cdnfonts.com/css/academy-engraved-let"
-          rel="stylesheet"
-        />
-        <link
-          href="https://fonts.cdnfonts.com/css/big-caslon"
-          rel="stylesheet"
-        />
-      </Head>
-
-      <div className="min-h-screen bg-black text-white">
-        {/* Retro Grid Background */}
-        <div className="grid-background">
-          <div className="perspective-grid"></div>
-        </div>
-
-        <div className="relative z-10 container mx-auto px-8 py-12">
-          {/* Header with back button */}
-          <div className="mb-12">
-            <button
-              onClick={() => router.push("/")}
-              className="inline-flex items-center text-white hover:text-gray-300 transition"
-            >
-              <svg
-                className="w-6 h-6 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M15 19l-7-7 7-7"
-                ></path>
-              </svg>
-              Back to Home
-            </button>
-          </div>
-
-          <div className="max-w-4xl mx-auto">
-            <h1 className="caslon-font text-5xl mb-8 text-center">
-              Create Your Thread
-            </h1>
-
-            <FileUploader onUpload={handleScreenshotUpload} />
-            {screenshots.length > 0 && <p>1 screenshot added.</p>}
-
-            {screenshots.length > 0 && (
-              <div style={{ marginTop: "10px" }}>
-                <h3>Screenshot details (debug)</h3>
-                <ul style={{ paddingLeft: 18, fontSize: 13 }}>
-                  {screenshots.map((shot, idx) => (
-                    <li key={idx} style={{ marginBottom: 10 }}>
-                      <strong>Screenshot {idx + 1}</strong>
-                      <br />
-                      Title: {shot.title || "—"}
-                      <br />
-                      Channel: {shot.channel || "—"}
-                      <br />
-                      Handle: {shot.handle || "—"}
-                      <br />
-                      Video ID: {shot.videoId || "—"}
-                      <br />
-                      Description: {shot.description || "—"}
-                      <br />
-                      {shot.videoId && (
-                        <button
-                          onClick={() =>
-                            handleFetchCommentsFromScreenshot(shot.videoId)
-                          }
-                          style={{
-                            marginTop: 4,
-                            padding: "4px 8px",
-                            fontSize: 12,
-                            cursor: "pointer",
-                            borderRadius: 4,
-                            border: "1px solid #ccc",
-                            background: "#f5f5f5",
-                            color: "#000",
-                          }}
-                        >
-                          Load comments for this video
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <p
-              style={{
-                textAlign: "center",
-                marginTop: 20,
-                marginBottom: 0,
-                fontSize: 16,
-              }}
-            >
-              or
-            </p>
-
-            <URLInputs
-              onTranscript={handleTranscript}
-              onComments={handleComments}
-              onArticle={handleArticle}
-              commentsStatus={commentsStatus}
-              onCommentsStatusChange={setCommentsStatus}
-            />
-
-            {transcript && <p>Transcript loaded ✓</p>}
-            {article && <p>Article extracted ✓</p>}
-
-            {/* Transcript preview */}
-            {transcript && (
-              <div style={{ marginTop: "10px" }}>
-                <h3>Transcript preview (raw)</h3>
-                <pre
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    maxHeight: "200px",
-                    overflow: "auto",
-                    background: "#f5f5f5",
-                    padding: "10px",
-                    color: "#000",
-                  }}
-                >
-                  {JSON.stringify(transcript, null, 2)}
-                </pre>
-              </div>
-            )}
-
-            {/* Article preview */}
-            {article && (
-              <div style={{ marginTop: "10px" }}>
-                <h3>Article preview</h3>
-                <p>
-                  <strong>Title:</strong> {article.title}
-                </p>
-                <pre
-                  style={{
-                    whiteSpace: "pre-wrap",
-                    maxHeight: "200px",
-                    overflow: "auto",
-                    background: "#f5f5f5",
-                    padding: "10px",
-                    color: "#000",
-                  }}
-                >
-                  {article.content
-                    ? (() => {
-                        const plain = stripHtml(article.content);
-                        return (
-                          plain.slice(0, 1000) +
-                          (plain.length > 1000 ? "..." : "")
-                        );
-                      })()
-                    : "No article content found."}
-                </pre>
-              </div>
-            )}
-
-            <RawTextInput text={rawText} setText={setRawText} />
-
-            <ToneSelector tone={tone} setTone={setTone} />
-
-            <ModeSelector mode={mode} setMode={setMode} />
-
-            <div style={{ textAlign: "center", marginTop: "20px" }}>
-              <button
-                onClick={handleGenerate}
-                disabled={loading}
-                className="bg-white text-black caslon-font text-2xl py-4 px-8 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
-              >
-                {loading ? "Generating..." : "Generate Output"}
-              </button>
-            </div>
-
-            {/* Sources summary panel */}
-            <div
-              style={{
-                marginTop: 20,
-                marginBottom: 20,
-                padding: 12,
-                borderRadius: 8,
-                border: "1px solid #ddd",
-                background: "#fafafa",
-                fontSize: 14,
-                color: "#000",
-              }}
-            >
-              <h3 style={{ marginTop: 0, marginBottom: 8 }}>
-                Sources summary
-              </h3>
-              <ul style={{ margin: 0, paddingLeft: 18 }}>
-                <li>{screenshotCount} screenshot(s)</li>
-                <li>Transcript: {transcriptStatus}</li>
-                <li>
-                  Comments:{" "}
-                  {commentsCount > 0 ? `${commentsCount} loaded` : "None"}
-                </li>
-                <li>Article: {articleStatus}</li>
-                <li>
-                  Raw text:{" "}
-                  {rawTextChars > 0 ? `${rawTextChars} character(s)` : "None"}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
+    <div style={{ padding: "20px", maxWidth: "900px", margin: "0 auto", position: "relative" }}>
+      {/* Header with back button */}
+      <div style={{ marginBottom: "20px" }}>
+        <button
+          onClick={() => router.push("/")}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontSize: "16px",
+            color: "#333",
+            padding: "8px"
+          }}
+        >
+          <svg style={{ width: "20px", height: "20px", marginRight: "8px" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+          Back to Home
+        </button>
       </div>
 
-      <style jsx>{`
-        .academy-font {
-          font-family: 'Academy Engraved LET', serif;
-        }
+      <h1 style={{ marginBottom: "30px" }}>Create Your Thread</h1>
 
-        .caslon-font {
-          font-family: 'Big Caslon', serif;
-          font-weight: bold;
-        }
+      <FileUploader onUpload={handleScreenshotUpload} />
+      {screenshots.length > 0 && <p>1 screenshot added.</p>}
 
-        /* Retro grid background */
-        .grid-background {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          height: 60vh;
-          overflow: hidden;
-          z-index: 0;
-          perspective: 500px;
-        }
+      {screenshots.length > 0 && (
+        <div style={{ marginTop: "10px" }}>
+          <h3>Screenshot details</h3>
+          <ul style={{ paddingLeft: 18, fontSize: 13 }}>
+            {screenshots.map((shot, idx) => (
+              <li key={idx} style={{ marginBottom: 10 }}>
+                <strong>Screenshot {idx + 1}</strong>
+                <br />
+                Title: {shot.title || "—"}
+                <br />
+                Channel: {shot.channel || "—"}
+                <br />
+                Handle: {shot.handle || "—"}
+                <br />
+                Video ID: {shot.videoId || "—"}
+                <br />
+                Description: {shot.description || "—"}
+                <br />
+                {shot.videoId && (
+                  <button
+                    onClick={() =>
+                      handleFetchCommentsFromScreenshot(shot.videoId)
+                    }
+                    style={{
+                      marginTop: 4,
+                      padding: "4px 8px",
+                      fontSize: 12,
+                      cursor: "pointer",
+                      borderRadius: 4,
+                      border: "1px solid #ccc",
+                      background: "#f5f5f5",
+                    }}
+                  >
+                    Load comments for this video
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        .perspective-grid {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          width: 100%;
-          height: 150%;
-          transform-origin: bottom center;
-          transform: rotateX(75deg);
-          background-image: linear-gradient(
-              0deg,
-              transparent 49%,
-              rgba(255, 255, 255, 0.4) 49%,
-              rgba(255, 255, 255, 0.4) 51%,
-              transparent 51%
-            ),
-            linear-gradient(
-              90deg,
-              transparent 49%,
-              rgba(255, 255, 255, 0.4) 49%,
-              rgba(255, 255, 255, 0.4) 51%,
-              transparent 51%
-            );
-          background-size: 100px 100px;
-          background-position: 0 0;
-          animation: gridMove 15s linear infinite;
-          mask-image: linear-gradient(
-            to bottom,
-            rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.5) 20%,
-            rgba(0, 0, 0, 1) 40%,
-            rgba(0, 0, 0, 1) 100%
-          );
-          -webkit-mask-image: linear-gradient(
-            to bottom,
-            rgba(0, 0, 0, 0) 0%,
-            rgba(0, 0, 0, 0.5) 20%,
-            rgba(0, 0, 0, 1) 40%,
-            rgba(0, 0, 0, 1) 100%
-          );
-        }
+      <p style={{ textAlign: "center", marginTop: 20, marginBottom: 0, fontSize: 16 }}>
+        or
+      </p>
 
-        @keyframes gridMove {
-          0% {
-            background-position: 0 0;
-          }
-          100% {
-            background-position: 0 100px;
-          }
-        }
-      `}</style>
-    </>
+      <URLInputs
+        onTranscript={handleTranscript}
+        onComments={handleComments}
+        onArticle={handleArticle}
+        commentsStatus={commentsStatus}
+        onCommentsStatusChange={setCommentsStatus}
+      />
+
+      {transcript && <p>Transcript loaded ✓</p>}
+      {article && <p>Article extracted ✓</p>}
+
+      {/* Transcript preview */}
+      {transcript && (
+        <div style={{ marginTop: "10px" }}>
+          <h3>Transcript preview (raw)</h3>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              maxHeight: "200px",
+              overflow: "auto",
+              background: "#f5f5f5",
+              padding: "10px",
+            }}
+          >
+            {JSON.stringify(transcript, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      {/* Article preview */}
+      {article && (
+        <div style={{ marginTop: "10px" }}>
+          <h3>Article preview</h3>
+          <p>
+            <strong>Title:</strong> {article.title}
+          </p>
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              maxHeight: "200px",
+              overflow: "auto",
+              background: "#f5f5f5",
+              padding: "10px",
+            }}
+          >
+            {article.content
+              ? (() => {
+                  const plain = stripHtml(article.content);
+                  return (
+                    plain.slice(0, 1000) +
+                    (plain.length > 1000 ? "..." : "")
+                  );
+                })()
+              : "No article content found."}
+          </pre>
+        </div>
+      )}
+
+      <RawTextInput text={rawText} setText={setRawText} />
+
+      <ToneSelector tone={tone} setTone={setTone} />
+
+      <ModeSelector mode={mode} setMode={setMode} />
+
+      <div style={{ textAlign: "center", marginTop: "20px" }}>
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          style={{
+            padding: "10px 20px",
+            fontSize: "16px",
+            cursor: loading ? "not-allowed" : "pointer",
+            backgroundColor: loading ? "#ccc" : "#000",
+            color: "#fff",
+            border: "none",
+            borderRadius: "4px",
+          }}
+        >
+          {loading ? "Generating..." : "Generate Output"}
+        </button>
+      </div>
+
+      {/* Sources summary panel */}
+      <div
+        style={{
+          marginTop: 20,
+          marginBottom: 20,
+          padding: 12,
+          borderRadius: 8,
+          border: "1px solid #ddd",
+          background: "#fafafa",
+          fontSize: 14,
+        }}
+      >
+        <h3 style={{ marginTop: 0, marginBottom: 8 }}>Sources summary</h3>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <li>{screenshotCount} screenshot(s)</li>
+          <li>Transcript: {transcriptStatus}</li>
+          <li>
+            Comments:{" "}
+            {commentsCount > 0 ? `${commentsCount} loaded` : "None"}
+          </li>
+          <li>Article: {articleStatus}</li>
+          <li>
+            Raw text:{" "}
+            {rawTextChars > 0 ? `${rawTextChars} character(s)` : "None"}
+          </li>
+        </ul>
+      </div>
+    </div>
   );
 }
